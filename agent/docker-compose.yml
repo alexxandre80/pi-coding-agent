@@ -20,7 +20,9 @@ services:
       # Historique des sessions
       - ./state:/home/agent/.local/share/opencode
     ports:
-      - "${OPENCODE_PORT:-4096}:4096"
+      # IPv4 UNIQUEMENT ("0.0.0.0:") : le pare-feu ne filtre que l'IPv4. Une publication sans préfixe
+      # écoute aussi en IPv6 ([::]) et rendrait l'agent joignable hors de Tailscale.
+      - "0.0.0.0:${OPENCODE_PORT:-4096}:4096"
     networks: [agent_net]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -48,7 +50,7 @@ services:
   #     - ./dev-runner.sh:/usr/local/bin/dev-runner.sh:ro
   #   command: ["sh", "/usr/local/bin/dev-runner.sh"]
   #   ports:
-  #     - "8192:8092"
+  #     - "0.0.0.0:8192:8092"     # toujours préfixer par 0.0.0.0 (voir plus haut)
   #   networks: [agent_net]
   #   cap_drop: [ALL]
   #   security_opt: ["no-new-privileges:true"]
@@ -59,6 +61,7 @@ services:
 networks:
   agent_net:
     name: agent_net
+    enable_ipv6: false
     driver_opts:
       com.docker.network.bridge.name: br-agent
     ipam:

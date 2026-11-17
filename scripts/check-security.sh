@@ -49,6 +49,12 @@ $X 'curl -s -o /dev/null --max-time 6 -w "%{http_code}" https://openrouter.ai/ap
   && ok "Internet joignable (attendu)" || ko "Internet injoignable"
 
 echo "=== D. Accès entrants ==="
+# Le pare-feu ne filtre que l'IPv4 : aucun port de l'agent ou d'un aperçu ne doit écouter en IPv6.
+V6="$(ss -ltnH 2>/dev/null | awk '$4 ~ /^\[::\]:/ {printf "%s ", $4}')"
+for port in $(docker ps --filter network=agent_net --format '{{.Ports}}' | grep -oE ':[0-9]+->' | grep -oE '[0-9]+' | sort -u); do
+  echo "$V6" | grep -q "\]:$port " && ko "port $port publié en IPv6 (contourne le pare-feu) : préfixer par 0.0.0.0 dans le compose" \
+    || ok "port $port non publié en IPv6"
+done
 code=$(curl -s -o /dev/null --max-time 4 -w '%{http_code}' http://127.0.0.1:4096/)
 [ "$code" = "401" ] && ok "interface agent sans mot de passe -> 401" || ko "interface agent sans mot de passe -> $code"
 if [ -n "$LAN_IP" ]; then

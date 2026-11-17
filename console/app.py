@@ -28,6 +28,8 @@ from urllib.parse import parse_qs, urlparse
 
 BASE = Path(__file__).resolve().parent
 HISTORY = BASE / "history.json"
+BUNDLE_DIR = BASE / ".bundles"          # dossier réservé à la Console (chmod 700), hors de portée de l'agent
+BUNDLE_MAX = 200 * 1024 * 1024
 LOCK = threading.Lock()
 CSRF = secrets.token_urlsafe(32)
 
@@ -124,11 +126,23 @@ def http_ok(url):
 def refresh_incoming(p):
     """Exporte le DEV en bundle depuis le conteneur puis l'importe dans la PROD (ref dev-incoming)."""
     name = p["name"]
-    code, out = run(["docker", "exec", AGENT_CONTAINER, "sh", "-c",
-                     f"mkdir -p /workspace/.bundles && git -C /workspace/{name} bundle create -q /workspace/.bundles/{name}.bundle main"])
-    if code:
-        return f"Export du DEV impossible (agent arrêté ?) : {out[-200:]}"
-    code, out = git(p["prod"], "fetch", "-q", str(WORKSPACE_DIR / ".bundles" / f"{name}.bundle"), "+main:refs/heads/dev-incoming")
+    # Le bundle sort du conteneur par la sortie standard et atterrit dans un dossier réservé à la Console :
+    # il ne transite jamais par un dossier que l'agent peut modifier (pas de substitution par un lien).
+    BUNDLE_DIR.mkdir(mode=0o700, exist_ok=True)
+    bundle = BUNDLE_DIR / f"{name}.bundle"
+    try:
+        with open(bundle, "wb") as f:
+            r = subprocess.run(["docker", "exec", "-w", f"/workspace/{name}", AGENT_CONTAINER,
+                                "git", "bundle", "create", "-q", "-", "main"],
+                               stdout=f, stderr=subprocess.PIPE, timeout=90)
+    except subprocess.TimeoutExpired:
+        return "Export du DEV impossible : délai dépassé"
+    if r.returncode:
+        return f"Export du DEV impossible (agent arrêté ?) : {r.stderr.decode('utf-8', 'replace')[-200:]}"
+    if bundle.stat().st_size > BUNDLE_MAX:
+        bundle.unlink(missing_ok=True)
+        return "Export du DEV refusé : taille anormale (plus de 200 Mo)"
+    code, out = git(p["prod"], "fetch", "-q", str(bundle), "+main:refs/heads/dev-incoming")
     if code:
         return f"Import du DEV impossible : {out[-200:]}"
     return None

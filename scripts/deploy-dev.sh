@@ -8,7 +8,6 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 P="${1:-}"
-WORKSPACE_DIR="${WORKSPACE_DIR:-$HOME/workspace}"
 BACKUP_DIR="${BACKUP_DIR:-$HOME/backups}"
 read -r PROD SVC < <(python3 - "$REPO/console/projects.json" "$P" <<'EOF'
 import json, sys
@@ -19,8 +18,10 @@ EOF
 ) || true
 [ -n "${PROD:-}" ] || { echo "Usage : $0 <projet déclaré dans console/projects.json>"; exit 1; }
 
-docker exec coding-agent sh -c "mkdir -p /workspace/.bundles && git -C /workspace/$P bundle create -q /workspace/.bundles/$P.bundle main"
-git -C "$PROD" fetch -q "$WORKSPACE_DIR/.bundles/$P.bundle" "+main:refs/heads/dev-incoming"
+# Le bundle sort du conteneur par la sortie standard vers un dossier temporaire privé (jamais par le workspace)
+TMPB="$(mktemp -d)"; trap 'rm -rf "$TMPB"' EXIT
+docker exec -w "/workspace/$P" coding-agent git bundle create -q - main > "$TMPB/$P.bundle"
+git -C "$PROD" fetch -q "$TMPB/$P.bundle" "+main:refs/heads/dev-incoming"
 
 if [ -z "$(git -C "$PROD" log --oneline main..dev-incoming)" ]; then
   echo "Rien de nouveau à déployer pour $P."; exit 0

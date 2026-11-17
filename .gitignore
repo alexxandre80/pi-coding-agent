@@ -8,6 +8,7 @@ agent/state/
 console/projects.json
 console/history.json
 console/history.tmp
+console/.bundles/
 *.tar.gz
 *.bundle
 

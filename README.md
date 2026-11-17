@@ -44,7 +44,7 @@ Le principe : **ce que l'agent ne voit pas, il ne peut pas le divulguer ni le ca
 - L'utilisateur est non-root, sans aucune capacité Linux, avec `no-new-privileges`. La config et les règles de l'agent sont en lecture seule.
 - Réseau : l'agent atteint Internet, mais ni l'hôte, ni le réseau local, ni les appareils Tailscale, ni les autres conteneurs.
 - Les interfaces ne sont accessibles que via Tailscale, avec un mot de passe obligatoire : le conteneur et la Console refusent de démarrer sans.
-- Déploiement : l'hôte ne lance **jamais** git dans un dépôt contrôlé par l'agent, car une config git piégée (`core.fsmonitor`, hooks) pourrait exécuter du code sur l'hôte. Le DEV transite en *bundle*, qui n'est qu'un fichier de données.
+- Déploiement : l'hôte ne lance **jamais** git dans un dépôt contrôlé par l'agent, car une config git piégée (`core.fsmonitor`, hooks) pourrait exécuter du code sur l'hôte. Le DEV transite en *bundle*, qui n'est qu'un fichier de données. Ce bundle sort du conteneur par la sortie standard, vers un dossier réservé à la Console : il ne passe jamais par un dossier que l'agent pourrait modifier.
 - La Console déploie exactement la version relue. Si le service ne répond plus, elle revient automatiquement à la version précédente.
 
 **Ce qui reste à ta charge (risques résiduels) :**
@@ -59,8 +59,12 @@ Le principe : **ce que l'agent ne voit pas, il ne peut pas le divulguer ni le ca
 - Raspberry Pi 4 ou 5 (arm64) sous Raspberry Pi OS / Debian. Sur x86_64, voir le commentaire du `Dockerfile`.
 - Docker avec le plugin compose v2, git, python3, iptables.
 - [Tailscale](https://tailscale.com) sur la machine et sur le téléphone.
-- Un utilisateur avec `sudo`. Pour la Console, `sudo` doit pouvoir redémarrer les services sans mot de passe, par exemple avec une règle limitée :
-  `echo "$USER ALL=(root) NOPASSWD: /usr/bin/systemctl restart *" | sudo tee /etc/sudoers.d/dev-console`
+- Un utilisateur avec `sudo`. La Console doit pouvoir redémarrer **les services de tes projets, et eux seuls**, sans mot de passe. Liste-les explicitement (pas de joker `*`, qui autoriserait n'importe quel service) :
+  ```bash
+  echo "$USER ALL=(root) NOPASSWD: /usr/bin/systemctl restart mon-projet.service, /usr/bin/systemctl restart autre-projet.service" \
+    | sudo tee /etc/sudoers.d/dev-console && sudo chmod 440 /etc/sudoers.d/dev-console && sudo visudo -c
+  ```
+  Ajoute une entrée à chaque nouveau projet.
 - Des clés API gratuites (voir plus bas).
 
 ## Installation
@@ -116,6 +120,7 @@ La Console affiche la consommation réelle par modèle, lue dans l'historique de
 - OpenCode 1.19.x attend l'**ancien format de permissions** (`"permission": {...}`). Le format `permissions` / `policies` décrit dans la doc en ligne est refusé par cette version.
 - Si l'agent affiche « inotify ... No space left on device », ce n'est pas le disque : la limite système `fs.inotify.max_user_watches` est saturée, souvent par un autre service qui surveille beaucoup de fichiers. Il faut la relever, par exemple à 262144 dans `/etc/sysctl.d/`.
 - Le pare-feu cible le sous-réseau `172.30.0.0/24` et le pont `br-agent` : change les deux ensemble si ce sous-réseau est déjà pris.
+- **Le pare-feu ne couvre que l'IPv4.** C'est voulu et suffisant à deux conditions, toutes deux en place dans ce dépôt : le réseau de l'agent n'a pas d'IPv6 (`enable_ipv6: false`), et chaque port est publié avec le préfixe `0.0.0.0:`. Sans ce préfixe, Docker écoute aussi en IPv6 (`[::]`). Si la machine a une adresse IPv6 publique (cas fréquent avec les box), l'agent devient alors joignable hors de Tailscale. `check-security.sh` le vérifie.
 
 ## Transparence
 
