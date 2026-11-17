@@ -1,0 +1,13 @@
+[Unit]
+Description=Isolation reseau du conteneur coding-agent
+# Avant Docker : le conteneur ne démarre jamais sans ses règles
+Before=docker.service
+After=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/agent-firewall.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

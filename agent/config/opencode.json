@@ -1,0 +1,86 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "share": "disabled",
+  "autoupdate": false,
+  "enabled_providers": ["groq", "openrouter"],
+  "instructions": ["/home/agent/.config/opencode/regles.md"],
+  "command": {
+    "critique": {
+      "description": "Relire le dernier plan de façon critique",
+      "template": "Relis ton dernier plan de façon critique. Supprime toute étape qui n'est pas indispensable à ma demande. Pour chaque étape restante, cite le fichier exact (et la ligne) que tu as lu et ce que tu y changes. Signale clairement tout ce que tu as supposé sans le vérifier. Ne modifie aucun fichier."
+    },
+    "verifie": {
+      "description": "Prouver ce qui a réellement été fait",
+      "template": "Sans rien modifier, prouve ce que tu as fait : lance git status, git log --oneline -5 et git diff HEAD~1 --stat, puis résume fichier par fichier ce qui a changé. Si quelque chose que tu as annoncé n'apparaît pas, dis-le clairement."
+    }
+  },
+  "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+  "small_model": "groq/openai/gpt-oss-20b",
+  "tools": {
+    "webfetch": false,
+    "websearch": false,
+    "codesearch": false,
+    "todowrite": false,
+    "todoread": false,
+    "task": false,
+    "skill": false,
+    "lsp": false
+  },
+  "provider": {
+    "groq": {
+      "whitelist": ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
+    },
+    "openrouter": {
+      "whitelist": [
+        "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "nvidia/nemotron-3.5-super-vl:free",
+        "cohere/north-mini-code:free",
+        "google/gemma-4-31b-it:free",
+        "inclusionai/ling-3.2-flash:free"
+      ]
+    }
+  },
+  "permission": {
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.example": "allow"
+    },
+    "edit": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "todowrite": "allow",
+    "question": "allow",
+    "task": "allow",
+    "skill": "allow",
+    "lsp": "allow",
+    "webfetch": "ask",
+    "websearch": "ask",
+    "doom_loop": "ask",
+    "external_directory": "deny",
+    "bash": {
+      "*": "ask",
+      "ls *": "allow",
+      "pwd": "allow",
+      "cat *": "allow",
+      "head *": "allow",
+      "tail *": "allow",
+      "wc *": "allow",
+      "rg *": "allow",
+      "grep *": "allow",
+      "find *": "allow",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git show*": "allow",
+      "git add *": "allow",
+      "git commit *": "allow",
+      "python3 -m py_compile *": "allow",
+      "sudo *": "deny",
+      "git push*": "deny",
+      "git remote*": "deny"
+    }
+  }
+}

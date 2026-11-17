@@ -1,0 +1,66 @@
+name: coding-agent
+
+# Paramètres dans agent/.env (créé par scripts/install.sh, voir .env.example)
+services:
+  opencode:
+    build:
+      context: .
+      args:
+        AGENT_UID: ${AGENT_UID:-1000}
+    image: local/coding-agent:1.19.5
+    container_name: coding-agent
+    user: "${AGENT_UID:-1000}:${AGENT_GID:-1000}"
+    env_file: agent.env
+    volumes:
+      # SEUL dossier de la machine visible par l'agent
+      - ${WORKSPACE_DIR:-/home/pi/workspace}:/workspace
+      # Config et règles en lecture seule : l'agent ne peut pas modifier ses propres règles
+      - ./config/opencode.json:/home/agent/.config/opencode/opencode.json:ro
+      - ./config/regles.md:/home/agent/.config/opencode/regles.md:ro
+      # Historique des sessions
+      - ./state:/home/agent/.local/share/opencode
+    ports:
+      - "${OPENCODE_PORT:-4096}:4096"
+    networks: [agent_net]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 512
+    mem_limit: 2g
+    cpus: 2.0
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # Aperçu DEV : un service par projet. Copier ce bloc, remplacer "mon-projet",
+  # le port interne de l'appli (8092 ici) et le port publié (8192 ici).
+  # L'aperçu relance l'appli dès que son fichier principal change (voir dev-runner.sh).
+  #
+  # mon-projet-dev:
+  #   image: local/coding-agent:1.19.5
+  #   container_name: mon-projet-dev
+  #   user: "${AGENT_UID:-1000}:${AGENT_GID:-1000}"
+  #   working_dir: /app
+  #   environment:
+  #     - APP_MAIN=server.py
+  #   volumes:
+  #     - ${WORKSPACE_DIR:-/home/pi/workspace}/mon-projet:/app
+  #     - ./dev-runner.sh:/usr/local/bin/dev-runner.sh:ro
+  #   command: ["sh", "/usr/local/bin/dev-runner.sh"]
+  #   ports:
+  #     - "8192:8092"
+  #   networks: [agent_net]
+  #   cap_drop: [ALL]
+  #   security_opt: ["no-new-privileges:true"]
+  #   pids_limit: 64
+  #   mem_limit: 256m
+  #   restart: unless-stopped
+
+networks:
+  agent_net:
+    name: agent_net
+    driver_opts:
+      com.docker.network.bridge.name: br-agent
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

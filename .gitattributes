@@ -1,0 +1,2 @@
+# Fins de ligne Unix partout (les scripts doivent tourner sur la Pi même s'ils sont clonés depuis Windows)
+* text=auto eol=lf

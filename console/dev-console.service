@@ -1,0 +1,16 @@
+[Unit]
+Description=Console DEV (deploiement DEV vers PROD + quotas)
+After=network-online.target tailscaled.service docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__DIR__
+ExecStart=/usr/bin/python3 __DIR__/app.py
+# Ecoute sur l'IP Tailscale : si Tailscale n'est pas encore pret au demarrage, on reessaie
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

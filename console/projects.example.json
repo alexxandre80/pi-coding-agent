@@ -1,0 +1,10 @@
+[
+  {
+    "name": "mon-projet",
+    "prod": "/home/pi/mon-projet",
+    "service": "mon-projet.service",
+    "health_url": "http://127.0.0.1:8092/",
+    "dev_url": "http://IP_TAILSCALE:8192/",
+    "prod_url": "http://IP_TAILSCALE:8092/"
+  }
+]
